@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+#
+REDUCE=""
+PUBLISH="N"
+SIMPLIFY="N"
+SSH_DIST_PORT=1202
+DIST_DIR="tomek@neptune:public_html/Geo/gpx"
+
+if [ $# -eq 0 ]; then
+   echo "*** tcx2gpx tcx-file -o [gpx-file] -max 999 -publish  ***";
+   echo "*** If gpx-file is not given script assumes that tcx-file is as YYYY-MM-DD*.tcx ***"
+   echo "*** and constructs gpx-file name as YYYY-MM-DD.gpx ***"
+   exit 1;
+fi
+
+while test $# -gt 0; do
+  case "$1" in
+
+    -max)  shift; COUNT="$1";;
+    -max*) COUNT="`echo :$1 | sed 's/^:-max//'`";;
+    -o)  shift; OUT="$1";;
+    -o*) OUT="`echo :$1 | sed 's/^:-o//'`";;
+    -publish)  PUBLISH="Y" ;;
+    -simplify) SIMPLIFY="Y";;
+    *)   FILE="$1";;
+  esac
+  shift
+done
+
+if [ -z "$OUT" ] ; then
+   gpxfile_basename=`echo $FILE | cut -b 1-4,6-7,9-10`;
+   gpxfile="$gpxfile_basename.gpx";
+   gpxfile_alt="$gpxfile_basename.xml"
+else
+   gpxfile="$OUT"
+fi
+
+if [ "$COUNT" != "" ] ; then REDUCE="-x simplify,count=$COUNT" ; fi
+
+if [ -e "$gpxfile" ] ; then
+   echo "*** FILE $gpxfile exists! REMOVE IT MANUALLY ***"
+else
+   gpsbabel -i gtrnctr -f $FILE $REDUCE -o gpx -F $gpxfile
+   perl -i.bak -e ' while (<>) { print $_;
+      if (/xsi:schemaLocation=/) {
+       print "<author>tomasz przechlewski</author>\n<email>tprzechlewski[at]acm.org</email>\n" .
+            "<url>http://pinkaccordions.homelinux.org/Geo/gpx/</url>\n";
+      }
+    }' $gpxfile
+fi
+
+if [ "$SIMPLIFY" = "Y" ] ; then
+   if [ -e "$gpxfile" ]; then
+       ## pomiń info na temat prędkości/wysokości
+       grep -v "speed\|ele" $gpxfile > $gpxfile.simplified && mv $gpxfile $gpxfile.orig && mv $gpxfile.simplified $gpxfile
+   fi
+fi
+
+if [ "$PUBLISH" = "Y" ] ; then
+   if [ -e "$gpxfile" ]; then
+     echo "*** Publishing $gpxfile as $gpxfile_alt ***"
+     scp -P ${SSH_DIST_PORT} -B $gpxfile $DIST_DIR/$gpxfile_alt
+   else
+     echo " *** nie ma pliku $gpxfile *** "
+   fi
+fi

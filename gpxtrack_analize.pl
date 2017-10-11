@@ -1,6 +1,7 @@
 #!/usr/bin/perl
-# Analizuje plik GPX
-# Zapisuje plik uproszczony
+# Analizuje plik GPX | 
+# Zapisuje plik uproszczony (z opcją reduce/max)
+# Generates simplified GPX file if used
 
 use XML::LibXML;
 use Getopt::Long;
